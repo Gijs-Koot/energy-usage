@@ -1,0 +1,3 @@
+* Energy usage
+
+Regression analysis of gas and electricity usage in my own home. 
