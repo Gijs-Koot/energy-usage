@@ -1,0 +1,71 @@
+* Statistical model for gas usage in my own home
+:PROPERTIES:
+#+PROPERTY: header-args:R :session gas-R :results verbatim :wrap src :exports both
+:END:
+
+
+#+begin_src R :exports code
+library(dplyr)
+library(jsonlite)
+library(ggplot2)
+library(readr)
+library(tidyr)
+library(lubridate)
+#+end_src
+
+#+RESULTS:
+#+begin_src
+lubridate
+tidyr
+readr
+ggplot2
+jsonlite
+dplyr
+stats
+graphics
+grDevices
+utils
+datasets
+methods
+base
+#+end_src
+
+#+begin_src R :results output
+usage <- fromJSON("data/agg.json") %>%
+  tibble() %>%
+  mutate(
+    date = parse_datetime(date),
+    gas = gas_high + gas_low,
+    elec = elec_high + elec_low
+  ) %>%
+  select(-gas_high, -gas_low, -elec_high, -elec_low) %>%
+    filter(
+      date > parse_datetime("2022-11-01"),
+    date < parse_datetime("2023-05-01"))
+
+usage %>% head
+#+end_src
+
+#+RESULTS:
+#+begin_src
+# A tibble: 6 × 3
+  date                    gas   elec
+  <dttm>                <dbl>  <dbl>
+1 2022-11-01 01:00:00 0.0210  0.109 
+2 2022-11-01 02:00:00 0.0100  0.128 
+3 2022-11-01 03:00:00 0       0.108 
+4 2022-11-01 04:00:00 0.0100  0.131 
+5 2022-11-01 05:00:00 0.00900 0.0997
+6 2022-11-01 06:00:00 0.262   0.175
+#+end_src
+
+#+begin_src R :file img/plot.png :results output graphics file :wrap none
+usage %>%
+  ggplot(aes(x = date, y = gas)) +
+  geom_point() + geom_smooth()
+#+end_src
+
+#+RESULTS:
+#+begin_none
+[[file:img/plot.png]]
+#+end_none

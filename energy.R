@@ -2,6 +2,7 @@ library(dplyr)
 library(jsonlite)
 library(ggplot2)
 library(readr)
+library(tidyr)
 library(lubridate)
 
 usage <- fromJSON("data/agg.json") %>%
@@ -11,17 +12,20 @@ usage <- fromJSON("data/agg.json") %>%
     gas = gas_high + gas_low,
     elec = elec_high + elec_low
   ) %>%
-  select(-gas_high, -gas_low, -elec_high, -elec_low)
+  select(-gas_high, -gas_low, -elec_high, -elec_low) %>%
+    filter(
+      date > parse_datetime("2022-11-01"),
+    date < parse_datetime("2023-05-01"))
 
 usage %>%
   ggplot(aes(x = date, y = gas)) +
-  geom_point()
+  geom_point() + geom_smooth()
 
 usage %>%
   group_by(date = floor_date(date, "day")) %>%
   summarise(gas = sum(gas)) %>%
   ggplot(aes(x = date, y = gas)) +
-  geom_line()
+  geom_line() + geom_smooth()
 
 usage %>%
   group_by(hour = hour(date)) %>%
@@ -78,11 +82,26 @@ daily %>% ggplot(aes(x = date, y = elec, color = weekdays(date))) +
   geom_smooth(se = FALSE)
 
 
-model <- lm(gas ~ 1 + I((abs(16 - temp) - 16 - temp) / 2) +  I((abs(16 - temp) - 16 - temp) ** 2 / 4), daily)
-summary(model)
+model <- lm(
+  gas ~ 1 + degrees.below.16, daily
+)
 
-daily %>% mutate(pred = predict(model, daily)) %>%
-  ggplot(aes(x = temp, y = pred)) + geom_line() + geom_point(aes(y = gas), color = "red")
+daily <- daily %>%
+  mutate(
+    degrees.below.16 = (abs(16 - temp) + 16 - temp) / 2,
+    is.weekend = weekdays(date) %in% c("Sunday", "Saturday")
+  )
+
+model <- lm(gas ~ 1 + degrees.below.16 + radiation + is.weekend, daily)
+
+summary(model)
+glance(model)
+
+daily %>%
+  mutate(pred = predict(model, daily)) %>%
+  ggplot(aes(x = temp, y = pred)) +
+  geom_line() +
+  geom_point(aes(y = gas), color = "red")
 
 
 daily %>%
@@ -92,7 +111,4 @@ daily %>%
   ) %>%
   pivot_longer(c(gas, fitted, residual)) %>%
   ggplot(aes(x = date, y = value, color = name)) +
-  geom_line() + geom_smooth() 
-
-library(tidyr)
-
+  geom_line() + geom_smooth()
