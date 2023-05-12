@@ -1,7 +1,10 @@
-* Statistical model for gas usage in my own home
+* Gas usage regression on temperature and radiation
 :PROPERTIES:
-#+PROPERTY: header-args:R :session gas-R :results verbatim :wrap src :exports both
+#+PROPERTY: header-args:R :session gas-R :results verbatim :wrap src :exports both :eval never-export
 :END:
+
+** Introduction
+
 
 
 #+begin_src R :exports code
@@ -29,6 +32,47 @@ datasets
 methods
 base
 #+end_src
+
+** Obtaining the data
+
+#+begin_src R :tangle get-data.R
+library(httr)
+library(readr)
+
+url <- "https://api-digital.enecogroup.com/dxpweb/nl/eneco/customers/40857840/accounts/2/usages"
+query <- list(
+  aggregation="Day",
+  interval="Hour",
+  start="2022-09-01",
+  end="2022-09-02",
+  addBudget="false",
+  addWeather="false",
+  extrapolate="false")
+
+apikey <- read_file("./apikey")
+authorization <- read_file("./authorization")
+
+headers <- c(
+  "Accept" = "application/json",
+  "apikey" = apikey,
+  "authorization" = authorization
+)
+
+response <- GET(url, query=query, add_headers(headers))
+
+write_file(content(response, "data/test", as="text")
+#+end_src
+
+#+RESULTS:
+#+begin_src
+#+end_src
+
+#+begin_src sh
+
+#+end_src
+
+
+** Cleaning and filtering
 
 #+begin_src R :results output
 usage <- fromJSON("data/agg.json") %>%
@@ -59,6 +103,8 @@ usage %>% head
 6 2022-11-01 06:00:00 0.262   0.175
 #+end_src
 
+** Exploration
+
 #+begin_src R :file img/plot.png :results output graphics file :wrap none
 usage %>%
   ggplot(aes(x = date, y = gas)) +
@@ -69,3 +115,5 @@ usage %>%
 #+begin_none
 [[file:img/plot.png]]
 #+end_none
+
+** Regression model
